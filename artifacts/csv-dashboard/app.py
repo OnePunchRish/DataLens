@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import plotly
 import plotly.express as px
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
@@ -591,6 +591,270 @@ def dashboard():
 def clear():
     session.clear()
     return redirect(url_for("index"))
+
+
+# ── Chat / query engine ───────────────────────────────────────────────────────
+
+def _find_cols(q: str, all_cols: list) -> list:
+    """Return column names that appear in the query (longest match first)."""
+    q_low = q.lower()
+    return [c for c in sorted(all_cols, key=len, reverse=True)
+            if c.lower() in q_low]
+
+
+def _has(q: str, *keywords) -> bool:
+    return any(k in q for k in keywords)
+
+
+def query_engine(df: pd.DataFrame, question: str) -> str:
+    """
+    Rule-based natural language query engine over a pandas DataFrame.
+    Interprets plain-English questions and returns formatted text answers.
+    """
+    import re
+    q = question.lower().strip()
+
+    all_cols   = df.columns.tolist()
+    num_cols   = df.select_dtypes(include="number").columns.tolist()
+    cat_cols   = df.select_dtypes(include=["object", "category"]).columns.tolist()
+    rows       = len(df)
+    mentioned  = _find_cols(q, all_cols)
+    target     = mentioned[0] if mentioned else None
+
+    # ── dataset overview ─────────────────────────────────
+    if _has(q, "how many rows", "row count", "how many records",
+               "total rows", "number of rows"):
+        return f"The dataset has {rows:,} rows."
+
+    if _has(q, "how many columns", "column count", "number of columns",
+               "total columns"):
+        return f"The dataset has {len(all_cols)} columns."
+
+    if _has(q, "show columns", "list columns", "what columns",
+               "all columns", "column names", "what are the columns"):
+        return ("Columns in this dataset:\n" +
+                "\n".join(f"  • {c}" for c in all_cols))
+
+    if _has(q, "missing", "null", "empty", "nan"):
+        null_counts = df.isnull().sum()
+        missing = [(c, int(n)) for c, n in null_counts.items() if n > 0]
+        if not missing:
+            return "No missing values — this dataset is fully complete."
+        lines = [f"  • {c}: {n:,} missing ({n/rows*100:.1f}%)"
+                 for c, n in missing]
+        return f"Missing values found in {len(missing)} column(s):\n" + "\n".join(lines)
+
+    if _has(q, "describe", "summary", "statistics", "stats overview"):
+        if not num_cols:
+            return "No numeric columns found."
+        desc = df[num_cols].describe().round(2)
+        lines = [f"  • {c}: mean={desc.loc['mean',c]}, "
+                 f"min={desc.loc['min',c]}, max={desc.loc['max',c]}"
+                 for c in num_cols[:6]]
+        return "Numeric column summary:\n" + "\n".join(lines)
+
+    # ── average / mean ────────────────────────────────────
+    if _has(q, "average", "mean", "avg"):
+        if target and target in num_cols:
+            v = round(float(df[target].mean()), 3)
+            return f"The average of '{target}' is {v:,}."
+        if num_cols:
+            lines = [f"  • {c}: {round(float(df[c].mean()), 2):,}"
+                     for c in num_cols[:6]]
+            return "Average of numeric columns:\n" + "\n".join(lines)
+        return "No numeric columns available."
+
+    # ── sum / total ───────────────────────────────────────
+    if _has(q, "sum of", "total of", "sum ", "total "):
+        if target and target in num_cols:
+            v = round(float(df[target].sum()), 2)
+            return f"The total sum of '{target}' is {v:,}."
+        if num_cols:
+            lines = [f"  • {c}: {round(float(df[c].sum()), 2):,}"
+                     for c in num_cols[:6]]
+            return "Sum of numeric columns:\n" + "\n".join(lines)
+        return "No numeric columns available."
+
+    # ── max / highest ─────────────────────────────────────
+    if _has(q, "max", "maximum", "highest", "largest", "biggest"):
+        if target and target in num_cols:
+            v = df[target].max()
+            return f"The maximum value in '{target}' is {v:,}."
+        if target and target in cat_cols:
+            top = df[target].value_counts().index[0]
+            cnt = int(df[target].value_counts().iloc[0])
+            return f"The most common value in '{target}' is '{top}' ({cnt:,} times)."
+        if num_cols:
+            maxes = {c: float(df[c].max()) for c in num_cols}
+            best  = max(maxes, key=maxes.get)
+            return (f"'{best}' has the highest maximum value: {maxes[best]:,}.\n"
+                    + "\n".join(f"  • {c}: {v:,}" for c, v in
+                                sorted(maxes.items(), key=lambda x: -x[1])[:6]))
+        return "No numeric columns available."
+
+    # ── min / lowest ──────────────────────────────────────
+    if _has(q, "min", "minimum", "lowest", "smallest"):
+        if target and target in num_cols:
+            v = df[target].min()
+            return f"The minimum value in '{target}' is {v:,}."
+        if num_cols:
+            mins = {c: float(df[c].min()) for c in num_cols}
+            best = min(mins, key=mins.get)
+            return f"'{best}' has the lowest minimum value: {mins[best]:,}."
+        return "No numeric columns available."
+
+    # ── median ────────────────────────────────────────────
+    if _has(q, "median"):
+        if target and target in num_cols:
+            v = round(float(df[target].median()), 3)
+            return f"The median of '{target}' is {v:,}."
+        if num_cols:
+            lines = [f"  • {c}: {round(float(df[c].median()), 2):,}"
+                     for c in num_cols[:6]]
+            return "Median of numeric columns:\n" + "\n".join(lines)
+        return "No numeric columns available."
+
+    # ── std dev ───────────────────────────────────────────
+    if _has(q, "std", "standard deviation", "variance", "spread"):
+        if target and target in num_cols:
+            v = round(float(df[target].std()), 3)
+            return f"The standard deviation of '{target}' is {v:,}."
+        if num_cols:
+            lines = [f"  • {c}: {round(float(df[c].std()), 2):,}"
+                     for c in num_cols[:6]]
+            return "Standard deviation of numeric columns:\n" + "\n".join(lines)
+        return "No numeric columns available."
+
+    # ── top N / most common ───────────────────────────────
+    if _has(q, "top", "most common", "frequent", "popular",
+               "distribution of", "value counts"):
+        col = target or (cat_cols[0] if cat_cols else
+                          num_cols[0] if num_cols else None)
+        if col:
+            match = re.search(r"\btop\s+(\d+)\b", q)
+            n = int(match.group(1)) if match else 5
+            counts = df[col].value_counts().head(n)
+            total  = counts.sum()
+            lines  = [f"  #{i+1}  '{v}' — {c:,} ({c/rows*100:.1f}%)"
+                      for i, (v, c) in enumerate(counts.items())]
+            return f"Top {n} values in '{col}':\n" + "\n".join(lines)
+        return "No columns available for value counts."
+
+    # ── unique values ─────────────────────────────────────
+    if _has(q, "unique", "distinct", "how many different"):
+        if target:
+            n = df[target].nunique()
+            return f"'{target}' has {n:,} unique values."
+        lines = [f"  • {c}: {df[c].nunique():,}" for c in all_cols]
+        return "Unique value counts per column:\n" + "\n".join(lines)
+
+    # ── correlation ───────────────────────────────────────
+    if _has(q, "correlation", "correlated", "relationship between",
+               "related to"):
+        if len(mentioned) >= 2:
+            a, b = mentioned[0], mentioned[1]
+            if a in num_cols and b in num_cols:
+                r = round(float(df[[a, b]].corr().loc[a, b]), 3)
+                strength = ("very strong" if abs(r) >= 0.8 else
+                            "strong"      if abs(r) >= 0.6 else
+                            "moderate"    if abs(r) >= 0.4 else "weak")
+                direction = "positive" if r > 0 else "negative"
+                return (f"Correlation between '{a}' and '{b}': r = {r}\n"
+                        f"That's a {strength} {direction} relationship.")
+        if len(num_cols) >= 2:
+            pairs = []
+            cols5 = num_cols[:5]
+            corr  = df[cols5].corr().round(2)
+            for i, ca in enumerate(cols5):
+                for cb in cols5[i+1:]:
+                    pairs.append((ca, cb, float(corr.loc[ca, cb])))
+            pairs.sort(key=lambda x: -abs(x[2]))
+            lines = [f"  • '{a}' & '{b}': r={r}"
+                     for a, b, r in pairs[:5]]
+            return "Strongest correlations:\n" + "\n".join(lines)
+        return "Need at least 2 numeric columns for correlation."
+
+    # ── group by ─────────────────────────────────────────
+    if _has(q, "group by", "grouped by", "per ", "by each", "average per",
+               "mean per", "sum per"):
+        pairs = [(ca, cn) for ca in mentioned if ca in cat_cols
+                           for cn in mentioned if cn in num_cols]
+        if pairs:
+            ca, cn = pairs[0]
+            op  = "sum" if _has(q, "sum", "total") else "mean"
+            grp = (df.groupby(ca)[cn].sum() if op == "sum"
+                   else df.groupby(ca)[cn].mean()).round(2).sort_values(ascending=False).head(8)
+            lines = [f"  • {k}: {v:,}" for k, v in grp.items()]
+            return (f"{'Total' if op=='sum' else 'Average'} '{cn}' by '{ca}':\n"
+                    + "\n".join(lines))
+        if cat_cols and num_cols:
+            ca, cn = cat_cols[0], num_cols[0]
+            grp = df.groupby(ca)[cn].mean().round(2).sort_values(ascending=False).head(8)
+            lines = [f"  • {k}: {v:,}" for k, v in grp.items()]
+            return f"Average '{cn}' by '{ca}':\n" + "\n".join(lines)
+
+    # ── show / tell me about column ───────────────────────
+    if _has(q, "show", "tell me about", "describe", "info about") and target:
+        if target in num_cols:
+            s = df[target].describe().round(2)
+            return (f"'{target}' statistics:\n"
+                    f"  • Count:  {int(s['count']):,}\n"
+                    f"  • Mean:   {s['mean']:,}\n"
+                    f"  • Std Dev:{s['std']:,}\n"
+                    f"  • Min:    {s['min']:,}\n"
+                    f"  • Median: {s['50%']:,}\n"
+                    f"  • Max:    {s['max']:,}")
+        if target in cat_cols:
+            counts = df[target].value_counts().head(5)
+            lines  = [f"  • '{v}': {c:,} ({c/rows*100:.1f}%)"
+                      for v, c in counts.items()]
+            n_unique = df[target].nunique()
+            return (f"'{target}' — {n_unique:,} unique values. Top 5:\n"
+                    + "\n".join(lines))
+
+    # ── count rows matching a value ───────────────────────
+    if _has(q, "count", "how many") and target:
+        if target in cat_cols:
+            counts = df[target].value_counts().head(8)
+            lines  = [f"  • '{v}': {c:,}" for v, c in counts.items()]
+            return f"Value counts for '{target}':\n" + "\n".join(lines)
+        if target in num_cols:
+            v = int(df[target].count())
+            return f"'{target}' has {v:,} non-null values out of {rows:,} rows."
+
+    # ── fallback with column-aware examples ──────────────
+    examples = []
+    if num_cols:
+        examples.append(f"average of {num_cols[0]}")
+        examples.append(f"max {num_cols[0]}")
+    if cat_cols:
+        examples.append(f"top 5 {cat_cols[0]}")
+    if len(num_cols) >= 2:
+        examples.append(f"correlation between {num_cols[0]} and {num_cols[1]}")
+    if cat_cols and num_cols:
+        examples.append(f"average {num_cols[0]} by {cat_cols[0]}")
+
+    hint = "\n".join(f"  • \"{e}\"" for e in examples)
+    return (f"I could not match that query. Try asking:\n{hint}\n"
+            f"  • \"how many rows\"\n"
+            f"  • \"missing data\"\n"
+            f"  • \"show columns\"")
+
+
+@app.route("/chat", methods=["POST"])
+def chat():
+    df = load_dataframe()
+    if df is None:
+        return jsonify({"answer": "No dataset loaded. Please upload a CSV file first."})
+    data = request.get_json(silent=True) or {}
+    question = data.get("question", "").strip()
+    if not question:
+        return jsonify({"answer": "Please type a question."})
+    try:
+        answer = query_engine(df, question)
+    except Exception as e:
+        answer = f"Error processing query: {e}"
+    return jsonify({"question": question, "answer": answer})
 
 
 if __name__ == "__main__":
