@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV Analytics Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #0f1117;
+            --surface: #1a1d2e;
+            --surface2: #252840;
+            --accent: #6366f1;
+            --accent-hover: #818cf8;
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+            --border: rgba(255, 255, 255, 0.08);
+            --success: #10b981;
+            --error: #ef4444;
+            --radius: 12px;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .hero {
+            text-align: center;
+            max-width: 560px;
+            width: 100%;
+        }
+
+        .logo {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 72px;
+            height: 72px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border-radius: 20px;
+            margin-bottom: 1.5rem;
+            font-size: 2rem;
+            box-shadow: 0 8px 32px rgba(99, 102, 241, 0.35);
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #e2e8f0, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.75rem;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 1.05rem;
+            margin-bottom: 2.5rem;
+            line-height: 1.6;
+        }
+
+        .upload-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 2.5rem;
+            width: 100%;
+        }
+
+        .drop-zone {
+            border: 2px dashed rgba(99, 102, 241, 0.35);
+            border-radius: 10px;
+            padding: 2.5rem 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: rgba(99, 102, 241, 0.04);
+            position: relative;
+        }
+
+        .drop-zone:hover,
+        .drop-zone.dragover {
+            border-color: var(--accent);
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        .drop-zone input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+
+        .drop-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .drop-zone p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .drop-zone p strong {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .drop-zone .file-name {
+            margin-top: 0.75rem;
+            font-size: 0.9rem;
+            color: var(--success);
+            font-weight: 500;
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            margin-top: 1.25rem;
+            padding: 0.875rem 1.5rem;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            letter-spacing: 0.025em;
+        }
+
+        .btn:hover {
+            background: linear-gradient(135deg, #818cf8, #a78bfa);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .features {
+            display: flex;
+            gap: 1.5rem;
+            margin-top: 2.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .feature {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .feature span {
+            font-size: 1.1rem;
+        }
+
+        .flash-messages {
+            width: 100%;
+            max-width: 560px;
+            margin-bottom: 1.5rem;
+        }
+
+        .flash {
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .flash.error {
+            background: rgba(239, 68, 68, 0.12);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+        }
+
+        .flash.success {
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #6ee7b7;
+        }
+
+        @media (max-width: 480px) {
+            h1 { font-size: 1.75rem; }
+            .upload-card { padding: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <div class="hero">
+        <div class="logo">📊</div>
+        <h1>CSV Analytics Dashboard</h1>
+        <p class="subtitle">Upload any CSV file to instantly visualize your data with interactive charts and a clean data table.</p>
+
+        <div class="upload-card">
+            <form method="POST" enctype="multipart/form-data" id="upload-form">
+                <div class="drop-zone" id="drop-zone">
+                    <input type="file" name="file" id="file-input" accept=".csv" required>
+                    <div class="drop-icon">📁</div>
+                    <p><strong>Click to browse</strong> or drag & drop your CSV file here</p>
+                    <p style="margin-top:0.4rem; font-size:0.82rem;">Supports up to 16 MB</p>
+                    <p class="file-name" id="file-name" style="display:none;"></p>
+                </div>
+                <button type="submit" class="btn">Analyze Dataset →</button>
+            </form>
+        </div>
+
+        <div class="features">
+            <div class="feature"><span>📋</span> Data Table</div>
+            <div class="feature"><span>📈</span> Bar Charts</div>
+            <div class="feature"><span>🥧</span> Pie Charts</div>
+            <div class="feature"><span>📉</span> Line Charts</div>
+        </div>
+    </div>
+
+    <script>
+        const input = document.getElementById('file-input');
+        const label = document.getElementById('file-name');
+        const dropZone = document.getElementById('drop-zone');
+
+        input.addEventListener('change', () => {
+            if (input.files.length > 0) {
+                label.textContent = '✓ ' + input.files[0].name;
+                label.style.display = 'block';
+            }
+        });
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                const dt = new DataTransfer();
+                dt.items.add(files[0]);
+                input.files = dt.files;
+                label.textContent = '✓ ' + files[0].name;
+                label.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

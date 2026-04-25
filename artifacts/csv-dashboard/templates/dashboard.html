@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard — {{ filename }}</title>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #0f1117;
+            --surface: #1a1d2e;
+            --surface2: #252840;
+            --accent: #6366f1;
+            --accent-hover: #818cf8;
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+            --border: rgba(255, 255, 255, 0.08);
+            --success: #10b981;
+            --error: #ef4444;
+            --radius: 12px;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            min-height: 100vh;
+        }
+
+        header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-sm {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+        }
+
+        .header-left h1 {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: var(--text);
+            background: none;
+            -webkit-text-fill-color: var(--text);
+        }
+
+        .header-left .file-badge {
+            background: rgba(99, 102, 241, 0.15);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            color: #a5b4fc;
+            padding: 0.2rem 0.65rem;
+            border-radius: 100px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .header-right {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .btn-sm {
+            padding: 0.45rem 1rem;
+            border-radius: 7px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            border: none;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #818cf8, #a78bfa);
+            transform: translateY(-1px);
+        }
+
+        .btn-ghost {
+            background: rgba(255,255,255,0.06);
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+        }
+
+        .btn-ghost:hover {
+            background: rgba(255,255,255,0.1);
+            color: var(--text);
+        }
+
+        main {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.25rem 1.5rem;
+        }
+
+        .stat-card .label {
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card .value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .stat-card .sub {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .section {
+            margin-bottom: 2rem;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            margin-bottom: 1rem;
+        }
+
+        .section-header h2 {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .section-header .badge {
+            background: rgba(99, 102, 241, 0.15);
+            color: #a5b4fc;
+            padding: 0.15rem 0.5rem;
+            border-radius: 100px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+            gap: 1.25rem;
+        }
+
+        .chart-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .chart-card .chart-inner {
+            padding: 0.5rem 0.5rem 0;
+        }
+
+        .chart-card .chart-inner > div {
+            width: 100%;
+            min-height: 300px;
+        }
+
+        .table-wrapper {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: auto;
+        }
+
+        table.data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        table.data-table thead tr {
+            background: var(--surface2);
+            border-bottom: 1px solid var(--border);
+        }
+
+        table.data-table th {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 0.78rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        table.data-table td {
+            padding: 0.65rem 1rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+            white-space: nowrap;
+            max-width: 240px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        table.data-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        table.data-table tbody tr:hover {
+            background: rgba(255,255,255,0.03);
+        }
+
+        .columns-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .col-chip {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.6rem 0.875rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+        }
+
+        .col-chip .col-name {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .col-chip .dtype-badge {
+            flex-shrink: 0;
+            font-size: 0.7rem;
+            padding: 0.15rem 0.45rem;
+            border-radius: 100px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .dtype-num {
+            background: rgba(99, 102, 241, 0.15);
+            color: #a5b4fc;
+        }
+
+        .dtype-cat {
+            background: rgba(16, 185, 129, 0.15);
+            color: #6ee7b7;
+        }
+
+        .dtype-date {
+            background: rgba(245, 158, 11, 0.15);
+            color: #fcd34d;
+        }
+
+        .dtype-other {
+            background: rgba(255,255,255,0.08);
+            color: var(--text-muted);
+        }
+
+        .null-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        .null-table td {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .null-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .null-bar {
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(239, 68, 68, 0.3);
+            overflow: hidden;
+        }
+
+        .null-bar-fill {
+            height: 100%;
+            background: #ef4444;
+            border-radius: 3px;
+        }
+
+        .flash-messages {
+            margin-bottom: 1.5rem;
+        }
+
+        .flash {
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .flash.error {
+            background: rgba(239, 68, 68, 0.12);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.25rem;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 0;
+            padding: 0 1.5rem;
+            background: var(--surface);
+            border-radius: var(--radius) var(--radius) 0 0;
+        }
+
+        .tab {
+            padding: 0.875rem 1.25rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.15s ease;
+            user-select: none;
+        }
+
+        .tab.active {
+            color: var(--accent-hover);
+            border-bottom-color: var(--accent);
+        }
+
+        .tab:hover:not(.active) {
+            color: var(--text);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .table-rounded {
+            border-radius: 0 0 var(--radius) var(--radius);
+        }
+
+        @media (max-width: 768px) {
+            main { padding: 1rem; }
+            header { padding: 1rem; }
+            .charts-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-left">
+            <div class="logo-sm">📊</div>
+            <h1>CSV Analytics</h1>
+            <span class="file-badge">{{ filename }}</span>
+        </div>
+        <div class="header-right">
+            <a href="{{ url_for('clear') }}" class="btn-sm btn-ghost">↩ New Upload</a>
+        </div>
+    </header>
+
+    <main>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="label">Total Rows</div>
+                <div class="value">{{ "{:,}".format(rows) }}</div>
+                <div class="sub">records</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Columns</div>
+                <div class="value">{{ cols }}</div>
+                <div class="sub">features</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Numeric</div>
+                <div class="value">{{ numeric_cols|length }}</div>
+                <div class="sub">columns</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Categorical</div>
+                <div class="value">{{ categorical_cols|length }}</div>
+                <div class="sub">columns</div>
+            </div>
+            {% if null_info %}
+            <div class="stat-card">
+                <div class="label">Missing Values</div>
+                <div class="value" style="color:#fca5a5;">{{ null_info.values()|sum }}</div>
+                <div class="sub">across {{ null_info|length }} columns</div>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if charts %}
+        <div class="section">
+            <div class="section-header">
+                <h2>Charts</h2>
+                <span class="badge">{{ charts|length }} visualizations</span>
+            </div>
+            <div class="charts-grid">
+                {% if charts.bar %}
+                <div class="chart-card">
+                    <div class="chart-inner">
+                        <div id="chart-bar"></div>
+                    </div>
+                </div>
+                {% endif %}
+                {% if charts.pie %}
+                <div class="chart-card">
+                    <div class="chart-inner">
+                        <div id="chart-pie"></div>
+                    </div>
+                </div>
+                {% endif %}
+                {% if charts.line %}
+                <div class="chart-card" style="grid-column: 1 / -1;">
+                    <div class="chart-inner">
+                        <div id="chart-line"></div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="section">
+            <div class="section-header">
+                <h2>Dataset Preview</h2>
+                <span class="badge">First {{ [rows, 100]|min }} of {{ "{:,}".format(rows) }} rows</span>
+            </div>
+            <div class="tabs" id="data-tabs">
+                <div class="tab active" data-tab="table">Data Table</div>
+                <div class="tab" data-tab="columns">Columns ({{ cols }})</div>
+                {% if stats %}<div class="tab" data-tab="stats">Statistics</div>{% endif %}
+                {% if null_info %}<div class="tab" data-tab="nulls">Missing Values</div>{% endif %}
+            </div>
+            <div id="tab-table" class="tab-content active">
+                <div class="table-wrapper table-rounded">
+                    {{ table_html|safe }}
+                </div>
+            </div>
+            <div id="tab-columns" class="tab-content">
+                <div class="table-wrapper table-rounded" style="padding:1.25rem;">
+                    <div class="columns-grid">
+                        {% for col in columns %}
+                        <div class="col-chip">
+                            <span class="col-name" title="{{ col }}">{{ col }}</span>
+                            {% set dt = dtypes[col] %}
+                            {% if 'int' in dt or 'float' in dt %}
+                                <span class="dtype-badge dtype-num">num</span>
+                            {% elif 'datetime' in dt %}
+                                <span class="dtype-badge dtype-date">date</span>
+                            {% elif 'object' in dt or 'category' in dt %}
+                                <span class="dtype-badge dtype-cat">cat</span>
+                            {% else %}
+                                <span class="dtype-badge dtype-other">{{ dt[:6] }}</span>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% if stats %}
+            <div id="tab-stats" class="tab-content">
+                <div class="table-wrapper table-rounded">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Statistic</th>
+                                {% for col in stats.keys() %}<th>{{ col }}</th>{% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% set stat_labels = ['count', 'mean', 'std', 'min', '25%', '50%', '75%', 'max'] %}
+                            {% for stat in stat_labels %}
+                            <tr>
+                                <td style="font-weight:600; color:var(--text-muted);">{{ stat }}</td>
+                                {% for col in stats.keys() %}
+                                <td>{{ stats[col].get(stat, '—') }}</td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+            {% if null_info %}
+            <div id="tab-nulls" class="tab-content">
+                <div class="table-wrapper table-rounded" style="padding:1.25rem;">
+                    <table class="null-table">
+                        <thead>
+                            <tr>
+                                <td style="font-weight:600; color:var(--text-muted); padding-bottom:0.75rem;">Column</td>
+                                <td style="font-weight:600; color:var(--text-muted); padding-bottom:0.75rem; text-align:right;">Missing</td>
+                                <td style="width:40%; font-weight:600; color:var(--text-muted); padding-bottom:0.75rem;">Proportion</td>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for col, count in null_info.items() %}
+                            <tr>
+                                <td>{{ col }}</td>
+                                <td style="text-align:right; color:#fca5a5;">{{ count }}</td>
+                                <td>
+                                    <div class="null-bar">
+                                        <div class="null-bar-fill" style="width:{{ (count / rows * 100)|round(1) }}%"></div>
+                                    </div>
+                                    <span style="font-size:0.78rem; color:var(--text-muted);">{{ (count / rows * 100)|round(1) }}%</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+
+    <script>
+        const layout = {
+            responsive: true,
+            displayModeBar: false,
+            scrollZoom: false
+        };
+
+        {% if charts.bar %}
+        Plotly.newPlot('chart-bar', {{ charts.bar|safe }}.data, {{ charts.bar|safe }}.layout, layout);
+        {% endif %}
+
+        {% if charts.pie %}
+        Plotly.newPlot('chart-pie', {{ charts.pie|safe }}.data, {{ charts.pie|safe }}.layout, layout);
+        {% endif %}
+
+        {% if charts.line %}
+        Plotly.newPlot('chart-line', {{ charts.line|safe }}.data, {{ charts.line|safe }}.layout, layout);
+        {% endif %}
+
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const target = tab.dataset.tab;
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById('tab-' + target).classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>
