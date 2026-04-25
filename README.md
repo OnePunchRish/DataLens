@@ -1,8 +1,8 @@
-#🚀 DataLens — AI-Powered Data Analysis Dashboard
+🚀 #DataLens — AI-Powered Data Analysis Dashboard
 
 DataLens is a web-based data analytics application that enables users to upload datasets and instantly generate interactive visualizations and meaningful insights. Designed for simplicity and usability, it helps users perform exploratory data analysis (EDA) without requiring deep technical expertise.
 
-#🔍 Features
+🔍 #Features
 📂 Upload CSV datasets
 📊 Interactive visualizations (Bar, Pie, Line charts using Plotly)
 📈 Automatic summary statistics (mean, median, distribution)
@@ -10,20 +10,20 @@ DataLens is a web-based data analytics application that enables users to upload 
 💬 Query-based data exploration (basic chat with data)
 🎨 Clean and responsive dashboard UI
 
-#🛠️ Tech Stack
+🛠️ #Tech Stack
 Backend: Python (Flask)
 Data Processing: Pandas
 Visualization: Plotly
 Frontend: HTML, CSS
 
-#⚡ How It Works
+⚡ #How It Works
 Upload a dataset in CSV format
 DataLens processes the dataset using Pandas
 Automatically generates charts and statistical summaries
 Displays key insights and patterns
 Users can interact with the dataset through simple queries
 
-#📁 Project Structure
+📁 #Project Structure
 DataLens/
 │
 ├── app.py
@@ -33,7 +33,7 @@ DataLens/
 │   └── dashboard.html
 └── static/ (optional)
 
-#▶️ Run Locally
+▶️ #Run Locally
 Clone the repository
 git clone https://github.com/your-username/datalens.git
 
@@ -49,26 +49,26 @@ python app.py
 Then open:
 http://127.0.0.1:5000/
 
-#🎯 Use Cases
+🎯 #Use Cases
 Quick exploratory data analysis (EDA)
 Business insights generation
 Academic and portfolio projects
 Data visualization demonstrations
 
-#🧠 Key Highlights
+🧠 #Key Highlights
 Combines data analytics with AI-assisted logic
 Designed for ease of use and fast insights
 Focus on clean UI and user experience
 Built as a portfolio-ready project
 
-#📌 Future Improvements
+📌 #Future Improvements
 Advanced AI-based insight generation
 Data cleaning and preprocessing tools
 Export reports (PDF/Excel)
 User authentication system
 More advanced query handling
 
-#🤝 Contributing
+🤝 #Contributing
 Contributions are welcome! Feel free to fork the repository and submit a pull request.
 
 ⭐ Support
